@@ -42,6 +42,18 @@ SPEC_MAP = {
     "WIDE 锡纸": "散装", "一次性胶片机": "一次性",
 }
 UNIT_MAP = {"一次性胶片机": "台", "迷你锡纸": "包", "SQ 锡纸": "包", "WIDE 锡纸": "包"}
+# 表格中用于配置年份折扣的行（名称 → discounts key）
+DISCOUNT_ROWS = {"27年": "2027", "26年": "2026"}
+
+
+def extract_discounts(rows):
+    """从表格行中提取年份折扣（如 27年=-6 → {"2027": -6}）。"""
+    out = {}
+    for name, price in rows:
+        key = DISCOUNT_ROWS.get(name)
+        if key and isinstance(price, (int, float)):
+            out[key] = -abs(int(price))
+    return out
 
 
 def extract_sheet():
@@ -115,6 +127,8 @@ def build_groups(rows, cur):
                 used.add(gid)
     groups = []
     for name, price in rows:
+        if name in DISCOUNT_ROWS:
+            continue  # 折扣配置行不进入商品列表
         gid = name_to_id.get(name)
         if gid is None:
             while f"fl-{fl_counter:02d}" in used:
@@ -179,7 +193,12 @@ def run_once():
     data.setdefault("shop", {"name": "拍立得价格计算器", "contact": "微信：Acssxiaolei", "notice": ""})
     data["saved_at"] = saved_at
     data.setdefault("currency", "¥")
-    data.setdefault("discounts", {"2027": -8, "2026": -23})
+    # 年份折扣优先从表格行读取（27年/26年行），读不到时用默认值
+    discounts = extract_discounts(rows)
+    if discounts:
+        data["discounts"] = discounts
+    else:
+        data.setdefault("discounts", {"2027": -8, "2026": -23})
     data["groups"] = new_groups
     with open(PRICES_JSON, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
