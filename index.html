@@ -658,13 +658,13 @@ function recompute(){
     if (n > 0) any = true;
     if (g._formulaError) return;
     total += lineTotal(toNum(g.price), now, y27, y26, d27, d26);
-    /* 购物小票明细：名称（年限）单价；数量；小计元 */
+    /* 购物小票明细：名称（年限）；单价 X；数量 N；总价 Y */
     var p = toNum(g.price), name = g.name;
     function pushLine(tag, unitPrice, qty){
       if (qty <= 0) return;
       var sub = Math.round(unitPrice * qty * 100) / 100;
-      receiptLines.push(escapeHtml(name) + '（' + tag + '）'
-        + formatMoney(unitPrice) + '；' + qty + '；' + formatMoney(sub) + '元');
+      receiptLines.push(escapeHtml(name) + '（' + tag + '）；单价 '
+        + formatMoney(unitPrice) + '；数量 ' + qty + '；总价 ' + formatMoney(sub));
     }
     pushLine('一年以上', p, n0);
     pushLine('27年', p + d27, n1);
