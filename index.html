@@ -29,6 +29,9 @@ input,button{font-family:inherit}
 .totalbar .lb{font-size:13px;color:var(--ink2);font-weight:600}
 .totalbar .num{font-size:30px;font-weight:800;color:var(--accent);letter-spacing:.5px}
 .totalbar .sub{font-size:12px;color:var(--ink3)}
+.totalbar .tl{display:flex;align-items:baseline;gap:10px;min-width:0}
+.totalbar .clear{flex:none;font-size:12px;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink2);cursor:pointer;transition:all .15s}
+.totalbar .clear:hover{background:var(--paper);color:var(--ink1);border-color:var(--ink3)}
 /* ===== 购物小票 ===== */
 .receipt{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px 12px;font-size:12.5px;display:none}
 .receipt.show{display:block}
@@ -92,9 +95,8 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   </header>
 
   <section class="totalbar">
-    <span class="lb">总价</span>
-    <span class="num" id="totalNum">¥0</span>
-    <span class="sub" id="totalSub"></span>
+    <span class="tl"><span class="lb">总价</span><span class="num" id="totalNum">¥0</span><span class="sub" id="totalSub"></span></span>
+    <button class="clear" id="clearBtn" type="button">清空</button>
   </section>
 
   <div id="receipt" class="receipt"></div>
@@ -549,7 +551,7 @@ var $ = function(s){ return document.querySelector(s); };
 var el = {
   name: $('#shopName'), contact: $('#shopContact'), savedAt: $('#savedAt'), sourceBadge: $('#sourceBadge'),
   totalNum: $('#totalNum'), totalSub: $('#totalSub'), tableBox: $('#tableBox'),
-  receipt: $('#receipt'),
+  receipt: $('#receipt'), clearBtn: $('#clearBtn'),
   footLine: $('#footLine'), footNote: $('#footNote')
 };
 var groupsById = {}, discounts = { 2027: 0, 2026: 0 };
@@ -687,6 +689,12 @@ function recompute(){
 
 el.tableBox.addEventListener('input', function(e){
   if (e.target && e.target.tagName === 'INPUT') recompute();
+});
+
+/* 清空按钮：一键清空所有盒数输入 */
+el.clearBtn.addEventListener('click', function(){
+  el.tableBox.querySelectorAll('.row input').forEach(function(i){ i.value = ''; });
+  recompute();
 });
 
 /* ===== 数据加载 + 自动刷新（每 60 秒检查一次价格更新） ===== */
