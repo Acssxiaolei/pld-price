@@ -18,6 +18,8 @@ import json
 import os
 import re
 import time
+import datetime
+from zoneinfo import ZoneInfo
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRICES_JSON = os.path.join(BASE_DIR, "prices.json")
@@ -152,7 +154,8 @@ def run_once():
     if not rows:
         print("[sync] 表格无数据，跳过")
         return False
-    saved_at = time.strftime("%Y-%m-%d %H:%M")
+    # GitHub 服务器为 UTC，页面时间必须用北京时间（UTC+8）
+    saved_at = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M")
     cur = load_current()
     new_groups = build_groups(rows, cur)
     changed = False
