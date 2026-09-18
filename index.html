@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="拍立得价格表，输入盒数实时计算总价。价格自动同步腾讯文档表格。">
+<title>拍立得价格计算器</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23E0342A'/%3E%3Crect x='6' y='9.5' width='20' height='13' rx='2.5' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='3.4' fill='none' stroke='%23E0342A' stroke-width='2.2'/%3E%3Ccircle cx='16' cy='16' r='1.3' fill='%23E0342A'/%3E%3Crect x='10' y='12.2' width='2.4' height='1.7' rx='0.6' fill='%23E0342A'/%3E%3C/svg%3E">
+<style>
+:root{--ink:#23262B;--ink2:#6B7078;--ink3:#9AA0A8;--line:#ECE8E0;--paper:#F7F5F0;--card:#fff;--accent:#E0342A}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;line-height:1.4;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+input,button{font-family:inherit}
+.rainbow{height:4px;background:linear-gradient(90deg,#E8532F,#F5B525,#2E9E5B,#3E8DE3,#8A5CC0)}
+.wrap{max-width:860px;margin:0 auto;padding:0 0 30px}
+/* ===== 顶部 ===== */
+.head{padding:12px 16px 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.head h1{font-size:16px;font-weight:800;letter-spacing:.3px}
+.head .ct{font-size:11px;color:var(--ink3);margin-top:2px}
+.head .upd{font-size:12px;color:var(--ink3);margin-left:auto;white-space:nowrap}
+.head .src{font-size:11.5px;color:var(--ink3)}
+/* ===== 总价条（吸顶） ===== */
+.totalbar{
+  position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);backdrop-filter:blur(4px);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:10px 16px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+}
+.totalbar .lb{font-size:13px;color:var(--ink2);font-weight:600}
+.totalbar .num{font-size:30px;font-weight:800;color:var(--accent);letter-spacing:.5px}
+.totalbar .sub{font-size:12px;color:var(--ink3)}
+/* ===== 购物小票 ===== */
+.receipt{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px 12px;font-size:12.5px;display:none}
+.receipt.show{display:block}
+.receipt .rt{font-size:11px;color:var(--ink3);margin-bottom:6px;letter-spacing:.5px}
+.receipt .rl{padding:4px 0;border-bottom:1px dashed var(--line);line-height:1.5;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.receipt .rl:last-child{border-bottom:none}
+.receipt .rtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:8px;border-top:1px dashed var(--ink3);font-weight:800}
+.receipt .rtotal .n{font-size:14px}
+/* ===== 表格 ===== */
+.table{background:var(--card);border-bottom:1px solid var(--line)}
+.row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(3,minmax(56px,84px));
+  gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);
+}
+.row:last-child{border-bottom:none}
+.row.head{background:var(--paper);font-size:11px;color:var(--ink3);padding-top:6px;padding-bottom:6px}
+.row.head .qwrap span{white-space:nowrap;text-align:center}
+.c-name{min-width:0;display:flex;flex-direction:column;gap:1px}
+.nm{font-size:13.5px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.nm .bd{display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:600;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+.c-price{font-size:16px;font-weight:800;color:var(--accent);white-space:nowrap}
+.c-price .u{font-size:11px;color:var(--ink3);font-weight:500}
+.qwrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;grid-column:3/-1}
+.qwrap input{
+  width:100%;height:34px;text-align:center;font-size:15px;font-weight:700;
+  border:1px solid #D8D3C8;border-radius:9px;background:#fff;color:var(--ink);outline:none;
+  -moz-appearance:textfield;
+}
+.qwrap input::-webkit-outer-spin-button,.qwrap input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qwrap input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,52,42,.12)}
+.qwrap input::placeholder{color:#C4C0B6;font-weight:400}
+.empty{padding:24px;text-align:center;color:var(--ink3)}
+footer{padding:14px 16px 22px;text-align:center;font-size:11.5px;color:var(--ink3);line-height:1.8}
+input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* ===== 手机端 ===== */
+@media (max-width:640px){
+  .row{grid-template-columns:1fr auto;grid-template-areas:"a b" "c c";row-gap:6px;padding:8px 12px}
+  .c-name{grid-area:a}
+  .c-price{grid-area:b;align-self:start;margin-top:2px}
+  .qwrap{grid-area:c}
+  /* 手机端也显示表头（盒数/27年/26年标注） */
+  .row.head{display:grid;grid-template-columns:1fr auto;grid-template-areas:"a b" "c c";row-gap:6px}
+  .row.head .c-name{grid-area:a}
+  .row.head .c-price{grid-area:b}
+  .row.head .qwrap{grid-area:c}
+  .head .src{display:none}
+}
+</style>
+</head>
+<body>
+<div class="rainbow"></div>
+<div class="wrap">
+
+  <header class="head">
+    <div>
+      <h1 id="shopName">拍立得小店</h1>
+      <span class="ct" id="shopContact"></span>
+    </div>
+    <span class="upd" id="savedAt"></span>
+    <span class="src" id="sourceBadge"></span>
+  </header>
+
+  <section class="totalbar">
+    <span class="lb">总价</span>
+    <span class="num" id="totalNum">¥0</span>
+    <span class="sub" id="totalSub"></span>
+  </section>
+
+  <div id="receipt" class="receipt"></div>
+
+  <main class="table" id="tableBox"></main>
+
+  <footer>
+    <p id="footLine"></p>
+    <p id="footNote"></p>
+  </footer>
+</div>
+
+<script>
+/* =====================================================================
+   内置价格数据（备用兜底：仅当线上 prices.json 读取失败时使用）
+   正式数据源：腾讯文档表格「计算器价格」列，由云电脑同步服务自动
+   生成 prices.json 并发布，本页每 60 秒自动检查更新。
+   ===================================================================== */
+window.PRICE_DATA = {
+  "_说明": "价格数据由同步脚本自动从腾讯文档表格「计算器价格」列生成，请勿手改；改价请在腾讯文档表格中操作。saved_at 为云电脑最近一次同步时间。discounts 为年份折扣（27年每盒-5元，26年每盒-20元）。",
+  "shop": {
+    "name": "拍立得价格计算器",
+    "contact": "微信：Acssxiaolei",
+    "notice": ""
+  },
+  "saved_at": "2026-09-18 15:08",
+  "currency": "¥",
+  "discounts": {
+    "2027": -8,
+    "2026": -23
+  },
+  "groups": [
+    {
+      "id": "mini20p",
+      "name": "mini20p 盒装",
+      "unit": "盒",
+      "spec": "20 张/盒",
+      "price": 116,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "mini10p",
+      "name": "mini10p 盒装",
+      "unit": "盒",
+      "spec": "10 张/盒",
+      "price": 58,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "mini-tinfoil",
+      "name": "迷你锡纸",
+      "unit": "包",
+      "spec": "散装",
+      "price": 56,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "sq20p",
+      "name": "SQ 20p",
+      "unit": "盒",
+      "spec": "20 张/盒",
+      "price": 113,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "sq-tinfoil",
+      "name": "SQ 锡纸",
+      "unit": "包",
+      "spec": "散装",
+      "price": 55.5,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "wide20p",
+      "name": "WIDE20p",
+      "unit": "盒",
+      "spec": "20 张/盒",
+      "price": 143,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "wide-tinfoil",
+      "name": "WIDE 锡纸",
+      "unit": "包",
+      "spec": "散装",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "film-camera",
+      "name": "一次性胶片机",
+      "unit": "台",
+      "spec": "一次性",
+      "price": 106,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-01",
+      "name": "彩虹",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-02",
+      "name": "涂鸦",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 64,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-03",
+      "name": "黑白",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 44,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-04",
+      "name": "KT",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 89,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-05",
+      "name": "花语",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 64,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-06",
+      "name": "浮光",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-07",
+      "name": "爱心",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-08",
+      "name": "双子星",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 89,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-09",
+      "name": "粉边",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-10",
+      "name": "黑边",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 66,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-11",
+      "name": "马卡龙",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-12",
+      "name": "黑胶",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-13",
+      "name": "薰衣草",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 64,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-14",
+      "name": "花边银河",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-15",
+      "name": "人鱼",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-16",
+      "name": "维尼",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 99,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-17",
+      "name": "蓝边",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 71,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-18",
+      "name": "天青石",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-19",
+      "name": "花花调色盘",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 79,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-20",
+      "name": "糖霜",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 69,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    },
+    {
+      "id": "fl-21",
+      "name": "流光",
+      "unit": "盒",
+      "spec": "mini 相纸",
+      "price": 64,
+      "formula": "",
+      "badge": "",
+      "stock": "现货",
+      "image": "",
+      "items": []
+    }
+  ]
+};
+
+/* ==CALC-CORE-START== */
+function toNum(v){ var n = Number(v); return Number.isFinite(n) ? n : 0; }
+
+function formatMoney(n){
+  if (!Number.isFinite(n)) return '—';
+  var num = Math.round(n * 100) / 100;
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+/* 安全表达式求值：仅允许数字与 + - * / ( ) . 空格 */
+function safeEval(expr){
+  if (typeof expr !== 'string' || !/^[\d\s+\-*/().]+$/.test(expr)) return null;
+  try { return Function('"use strict";return (' + expr + ');')(); } catch(e){ return null; }
+}
+
+/* 公式自动算价：{{组id}}/2 等；按依赖逐轮解析，改被引用组价格会自动联动 */
+function resolveFormulas(groups){
+  if (!Array.isArray(groups)) return;
+  var i, p, resolved = {};
+  for (i = 0; i < groups.length; i++){
+    p = groups[i];
+    if (p.formula && typeof p.formula === 'string' && p.formula.trim()){
+      p._formulaError = p.formula;
+    } else {
+      resolved[p.id] = toNum(p.price);
+    }
+  }
+  var remaining = groups.filter(function(q){ return q._formulaError; });
+  var guard = groups.length + 2;
+  while (remaining.length && guard-- > 0){
+    var next = [];
+    remaining.forEach(function(q){
+      var expr = q.formula;
+      var deps = expr.match(/\{\{([^{}]+)\}\}/g) || [];
+      var ready = true;
+      for (var j = 0; j < deps.length; j++){
+        var id = deps[j].slice(2, -2);
+        if (resolved[id] === undefined){ ready = false; break; }
+      }
+      if (!ready){ next.push(q); return; }
+      var e2 = expr.replace(/\{\{([^{}]+)\}\}/g, function(_, id){ return String(resolved[id]); });
+      var val = safeEval(e2);
+      if (val === null || !Number.isFinite(val)){ next.push(q); return; }
+      var price = Math.round(val * 100) / 100;
+      q.price = price;
+      q._formulaError = '';
+      resolved[q.id] = price;
+    });
+    remaining = next;
+  }
+  remaining.forEach(function(q){ q._formulaError = q.formula; });
+}
+
+/* 单行总价：现价×盒数 + (现价+27年折扣)×27年盒数 + (现价+26年折扣)×26年盒数 */
+function lineTotal(price, qNow, q27, q26, d27, d26){
+  var n0 = toNum(qNow), n1 = toNum(q27), n2 = toNum(q26);
+  if (n0 < 0) n0 = 0;
+  if (n1 < 0) n1 = 0;
+  if (n2 < 0) n2 = 0;
+  var p1 = toNum(d27), p2 = toNum(d26);
+  var total = price * n0 + (price + p1) * n1 + (price + p2) * n2;
+  return Math.round(total * 100) / 100;
+}
+/* ==CALC-CORE-END== */
+
+/* ===== 渲染 ===== */
+var data = null, sourceMode = 'none';
+var $ = function(s){ return document.querySelector(s); };
+var el = {
+  name: $('#shopName'), contact: $('#shopContact'), savedAt: $('#savedAt'), sourceBadge: $('#sourceBadge'),
+  totalNum: $('#totalNum'), totalSub: $('#totalSub'), tableBox: $('#tableBox'),
+  receipt: $('#receipt'),
+  footLine: $('#footLine'), footNote: $('#footNote')
+};
+var groupsById = {}, discounts = { 2027: 0, 2026: 0 };
+
+function escapeHtml(s){
+  return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+function rowHTML(g){
+  var unit = g.unit || '盒';
+  var badge = g.badge ? '<span class="bd">' + escapeHtml(g.badge) + '</span>' : '';
+  var priceHTML = g._formulaError
+    ? '<span class="c-price" style="font-size:13px;color:var(--ink3)">公式错误</span>'
+    : '<span class="c-price">' + data.currency + formatMoney(toNum(g.price)) + '<span class="u">/' + escapeHtml(unit) + '</span></span>';
+  return '<div class="row" data-id="' + escapeHtml(g.id) + '">'
+    + '<div class="c-name">'
+    + '<span class="nm">' + escapeHtml(g.name) + badge + '</span>'
+    + '</div>'
+    + priceHTML
+    + '<div class="qwrap">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="一年以上" data-y="now">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="27年" data-y="2027">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="26年" data-y="2026">'
+    + '</div>'
+    + '</div>';
+}
+
+/* 花色按价格合并：商品逐行，花色同价聚合为一行（名称用 / 连接） */
+function buildRows(groups){
+  var goods = [], fancies = [];
+  groups.forEach(function(g){
+    if (String(g.id || '').indexOf('fl-') === 0) fancies.push(g);
+    else goods.push(g);
+  });
+  var map = {}, order = [];
+  fancies.forEach(function(g){
+    var key = String(toNum(g.price));
+    if (!map[key]){ map[key] = { price: toNum(g.price), names: [] }; order.push(key); }
+    map[key].names.push(g.name);
+  });
+  order.sort(function(a, b){ return toNum(a) - toNum(b); });
+  var merged = order.map(function(key){
+    var grp = map[key];
+    return {
+      id: 'fl-' + key, name: grp.names.join('/'), unit: '盒', spec: 'mini 相纸',
+      price: grp.price, formula: '', badge: '', stock: '现货', image: '', items: []
+    };
+  });
+  return goods.concat(merged);
+}
+
+function render(){
+  var s = data.shop || {};
+  el.name.textContent = s.name || '拍立得价格计算器';
+  el.contact.textContent = s.contact || '';
+  el.savedAt.textContent = data.saved_at ? ('价格更新：' + data.saved_at) : '';
+  el.footLine.textContent = '';
+  el.footNote.textContent = '';
+  var raw = Array.isArray(data.groups) ? data.groups : [];
+  var list = buildRows(raw);
+  resolveFormulas(list);
+  groupsById = {};
+  list.forEach(function(g){ groupsById[g.id] = g; });
+  discounts = (data.discounts && typeof data.discounts === 'object') ? data.discounts : {};
+  if (!list.length){
+    el.tableBox.innerHTML = '<p class="empty">暂未上架商品</p>';
+    return;
+  }
+  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
+  var head27 = d27 ? '27年(' + (d27 > 0 ? '+' : '') + d27 + ')' : '27年';
+  var head26 = d26 ? '26年(' + (d26 > 0 ? '+' : '') + d26 + ')' : '26年';
+  el.tableBox.innerHTML = '<div class="row head">'
+    + '<div class="c-name">商品</div><div class="c-price">单价</div>'
+    + '<div class="qwrap"><span>一年以上</span><span>' + head27 + '</span><span>' + head26 + '</span></div>'
+    + '</div>'
+    + list.map(rowHTML).join('');
+  recompute();
+}
+
+function setSourceBadge(){
+  if (sourceMode === 'fallback'){
+    el.sourceBadge.textContent = '价格数据读取失败，显示内置版本';
+  } else {
+    el.sourceBadge.textContent = '';
+  }
+}
+
+function recompute(){
+  var total = 0, boxSum = 0, any = false;
+  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
+  var rows = el.tableBox.querySelectorAll('.row[data-id]');
+  var receiptLines = [];
+  rows.forEach(function(row){
+    var g = groupsById[row.getAttribute('data-id')];
+    if (!g) return;
+    var inputs = row.querySelectorAll('input');
+    var now = inputs[0].value, y27 = inputs[1].value, y26 = inputs[2].value;
+    var n0 = toNum(now), n1 = toNum(y27), n2 = toNum(y26);
+    if (n0 < 0) n0 = 0;
+    if (n1 < 0) n1 = 0;
+    if (n2 < 0) n2 = 0;
+    var n = n0 + n1 + n2;
+    boxSum += n;
+    if (n > 0) any = true;
+    if (g._formulaError) return;
+    total += lineTotal(toNum(g.price), now, y27, y26, d27, d26);
+    /* 购物小票明细：名称（年限）单价；数量；小计元 */
+    var p = toNum(g.price), name = g.name;
+    function pushLine(tag, unitPrice, qty){
+      if (qty <= 0) return;
+      var sub = Math.round(unitPrice * qty * 100) / 100;
+      receiptLines.push(escapeHtml(name) + '（' + tag + '）'
+        + formatMoney(unitPrice) + '；' + qty + '；' + formatMoney(sub) + '元');
+    }
+    pushLine('一年以上', p, n0);
+    pushLine('27年', p + d27, n1);
+    pushLine('26年', p + d26, n2);
+  });
+  el.totalNum.textContent = data.currency + formatMoney(total);
+  el.totalSub.textContent = '';
+  /* 渲染小票 */
+  var rc = el.receipt;
+  if (!receiptLines.length){
+    rc.className = 'receipt';
+    rc.innerHTML = '';
+    return;
+  }
+  rc.className = 'receipt show';
+  rc.innerHTML = '<div class="rt">商品名称</div>'
+    + receiptLines.map(function(l){ return '<div class="rl">' + l + '</div>'; }).join('')
+    + '<div class="rtotal"><span>总计</span><span class="n">' + data.currency + formatMoney(total) + '</span></div>';
+}
+
+el.tableBox.addEventListener('input', function(e){
+  if (e.target && e.target.tagName === 'INPUT') recompute();
+});
+
+/* ===== 数据加载 + 自动刷新（每 60 秒检查一次价格更新） ===== */
+/* 指纹只按商品价格/名称计算；saved_at（同步时间）变化时只刷新顶部时间，
+   不重渲染表格，避免清空顾客正在输入的盒数 */
+function fingerprint(json){
+  return (json.groups || []).map(function(x){
+    return x.id + ':' + x.name + ':' + toNum(x.price);
+  }).join('|');
+}
+var lastFp = '';
+var lastSavedAt = '';
+
+function loadData(){
+  fetch('prices.json?_t=' + Date.now(), { cache: 'no-store' })
+    .then(function(res){
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(json){
+      var fp = fingerprint(json);
+      if (fp === lastFp){
+        // 价格没变：仅当同步时间变化时刷新顶部时间显示
+        if (json.saved_at && json.saved_at !== lastSavedAt){
+          lastSavedAt = json.saved_at;
+          el.savedAt.textContent = '价格更新：' + json.saved_at;
+        }
+        return;
+      }
+      lastFp = fp;
+      lastSavedAt = json.saved_at || '';
+      data = json;
+      sourceMode = 'json';
+      render();
+      setSourceBadge();
+    })
+    .catch(function(){
+      if (!data && window.PRICE_DATA){
+        data = window.PRICE_DATA;
+        sourceMode = 'fallback';
+        render();
+        setSourceBadge();
+      }
+    });
+}
+
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
