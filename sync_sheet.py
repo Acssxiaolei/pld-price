@@ -169,9 +169,8 @@ def run_once():
                 if og is None or og.get("price") != g["price"] or og.get("name") != g["name"]:
                     changed = True
                     break
-    if not changed:
-        print(f"[sync] 价格无变化，不更新（同步检查时间 {saved_at}）")
-        return False
+    # 每次同步都刷新 saved_at（页面顶部「价格更新」= GitHub 最近同步时间）；
+    # 价格有变化时同样重写全部数据。
     data = cur if cur is not None else {}
     data["_说明"] = "价格数据由 GitHub Actions 定时从腾讯文档表格「计算器价格」列自动生成，请勿手改；改价请在腾讯文档表格中操作。saved_at 为最近一次成功同步时间。discounts 为年份折扣（27年每盒-8元，26年每盒-23元）。"
     data.setdefault("shop", {"name": "拍立得价格计算器", "contact": "微信：Acssxiaolei", "notice": ""})
@@ -181,8 +180,11 @@ def run_once():
     data["groups"] = new_groups
     with open(PRICES_JSON, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"[sync] 价格有变化，已更新 prices.json（{len(new_groups)} 组，同步时间 {saved_at}）")
-    return True
+    if changed:
+        print(f"[sync] 价格有变化，已更新 prices.json（{len(new_groups)} 组，同步时间 {saved_at}）")
+    else:
+        print(f"[sync] 价格无变化，仅刷新同步时间（{saved_at}）")
+    return changed
 
 
 if __name__ == "__main__":
