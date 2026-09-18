@@ -554,7 +554,7 @@ var el = {
   receipt: $('#receipt'), clearBtn: $('#clearBtn'),
   footLine: $('#footLine'), footNote: $('#footNote')
 };
-var groupsById = {}, discounts = { 2027: 0, 2026: 0 };
+var groupsById = {}, discounts = { 2027: 0, 2026: 0 }, dLabels = { '2027': '27年', '2026': '26年' };
 
 function escapeHtml(s){
   return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c){
@@ -575,8 +575,8 @@ function rowHTML(g){
     + priceHTML
     + '<div class="qwrap">'
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="一年以上" data-y="now">'
-    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="27年" data-y="2027">'
-    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="26年" data-y="2026">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['2027']) + '" data-y="2027">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['2026']) + '" data-y="2026">'
     + '</div>'
     + '</div>';
 }
@@ -618,13 +618,15 @@ function render(){
   groupsById = {};
   list.forEach(function(g){ groupsById[g.id] = g; });
   discounts = (data.discounts && typeof data.discounts === 'object') ? data.discounts : {};
+  var dl = (data.discount_labels && typeof data.discount_labels === 'object') ? data.discount_labels : {};
+  dLabels = { '2027': dl['2027'] || '27年', '2026': dl['2026'] || '26年' };
   if (!list.length){
     el.tableBox.innerHTML = '<p class="empty">暂未上架商品</p>';
     return;
   }
   var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
-  var head27 = d27 ? '27年(' + (d27 > 0 ? '+' : '') + d27 + ')' : '27年';
-  var head26 = d26 ? '26年(' + (d26 > 0 ? '+' : '') + d26 + ')' : '26年';
+  var head27 = d27 ? dLabels['2027'] + '(' + (d27 > 0 ? '+' : '') + d27 + ')' : dLabels['2027'];
+  var head26 = d26 ? dLabels['2026'] + '(' + (d26 > 0 ? '+' : '') + d26 + ')' : dLabels['2026'];
   el.tableBox.innerHTML = '<div class="row head">'
     + '<div class="c-name">商品</div><div class="c-price">单价</div>'
     + '<div class="qwrap"><span>一年以上</span><span>' + head27 + '</span><span>' + head26 + '</span></div>'
@@ -669,8 +671,8 @@ function recompute(){
         + formatMoney(unitPrice) + '；数量 ' + qty + '；总价 ' + formatMoney(sub));
     }
     pushLine('一年以上', p, n0);
-    pushLine('27年', p + d27, n1);
-    pushLine('26年', p + d26, n2);
+    pushLine(dLabels['2027'], p + d27, n1);
+    pushLine(dLabels['2026'], p + d26, n2);
   });
   el.totalNum.textContent = data.currency + formatMoney(total);
   el.totalSub.textContent = '';

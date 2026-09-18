@@ -42,23 +42,11 @@ SPEC_MAP = {
     "WIDE 锡纸": "散装", "一次性胶片机": "一次性",
 }
 UNIT_MAP = {"一次性胶片机": "台", "迷你锡纸": "包", "SQ 锡纸": "包", "WIDE 锡纸": "包"}
-# 表格中用于配置年份折扣的行（名称 → discounts key）
-DISCOUNT_ROWS = {"27年": "2027", "26年": "2026"}
-
-
-def extract_discounts(rows):
-    """从表格行中提取年份折扣（如 27年=-6 → {"2027": -6}）。"""
-    out = {}
-    for name, price in rows:
-        key = DISCOUNT_ROWS.get(name)
-        if key and isinstance(price, (int, float)):
-            out[key] = -abs(int(price))
-    return out
 
 
 def extract_sheet():
     """用 playwright 打开表格，返回 (rows, updated_at)。
-    rows: [[名称, 价格数值, ...], ...]；updated_at 为表格首行「更新时间」文本。"""
+    rows: [[行号(idx, 0起), 名称, 价格数值], ...]；updated_at 为表格首行「更新时间」文本。"""
     from playwright.sync_api import sync_playwright
     rows = []
     updated_at = ""
@@ -108,14 +96,35 @@ def extract_sheet():
                     except (TypeError, ValueError):
                         price_num = None
                     if price_num is not None:
-                        rows.append((name, price_num))
+                        rows.append((row[0], name, price_num))
         finally:
             browser.close()
     return rows, updated_at
 
 
+# 表格布局约定：
+#   第2~3行（idx 1、2）= 年份折扣（A=名称，B=折扣价格，负数）
+#   第5行起（idx >= 4）= 商品（A=名称，B=计算器价格）
+DISCOUNT_ROW_KEYS = {1: "2027", 2: "2026"}
+
+
+def parse_discounts(rows):
+    """从折扣行（idx 1/2）解析年份折扣，返回 (labels, amounts)。
+    labels: {'2027': '27年', ...}；amounts: {'2027': -6, ...}"""
+    labels, amounts = {}, {}
+    for idx, name, price in rows:
+        key = DISCOUNT_ROW_KEYS.get(idx)
+        if not key:
+            continue
+        if name:
+            labels[key] = str(name).strip()
+        if isinstance(price, (int, float)):
+            amounts[key] = -abs(int(price))
+    return labels, amounts
+
+
 def build_groups(rows, cur):
-    """由表格行构建 groups（id 按名称稳定映射：商品固定 id，花色沿用已有 id，新花色追加 fl-xx）。"""
+    """由表格行构建 groups（rows 为 (idx, name, price)，仅商品行；id 按名称稳定映射）。"""
     name_to_id = dict(NAME_TO_ID)
     used = set(name_to_id.values())
     fl_counter = 1
@@ -126,9 +135,7 @@ def build_groups(rows, cur):
                 name_to_id[name] = gid
                 used.add(gid)
     groups = []
-    for name, price in rows:
-        if name in DISCOUNT_ROWS:
-            continue  # 折扣配置行不进入商品列表
+    for _idx, name, price in rows:
         gid = name_to_id.get(name)
         if gid is None:
             while f"fl-{fl_counter:02d}" in used:
@@ -171,7 +178,12 @@ def run_once():
     # GitHub 服务器为 UTC，页面时间必须用北京时间（UTC+8）
     saved_at = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M")
     cur = load_current()
-    new_groups = build_groups(rows, cur)
+    # 按行号分离：折扣行 idx 1/2；商品行 idx >= 4（第5行起）
+    goods_rows = [x for x in rows if x[0] >= 4]
+    new_groups = build_groups(goods_rows, cur)
+    # 年份折扣：第2~3行（名称可改，行号固定）
+    d_labels, d_amounts = parse_discounts(rows)
+    new_discounts = d_amounts if d_amounts else {"2027": -8, "2026": -23}
     changed = False
     if cur is None:
         changed = True
@@ -186,19 +198,23 @@ def run_once():
                 if og is None or og.get("price") != g["price"] or og.get("name") != g["name"]:
                     changed = True
                     break
+        if not changed and (
+            cur.get("discounts") != new_discounts
+            or (cur.get("discount_labels") or {}) != d_labels
+        ):
+            changed = True
     # 每次同步都刷新 saved_at（页面顶部「价格更新」= GitHub 最近同步时间）；
     # 价格有变化时同样重写全部数据。
     data = cur if cur is not None else {}
-    data["_说明"] = "价格数据由 GitHub Actions 定时从腾讯文档表格「计算器价格」列自动生成，请勿手改；改价请在腾讯文档表格中操作。saved_at 为最近一次成功同步时间。discounts 为年份折扣（27年每盒-8元，26年每盒-23元）。"
+    data["_说明"] = "价格数据由 GitHub Actions 定时从腾讯文档表格自动生成，请勿手改；改价请在腾讯文档表格中操作（第2~3行=年份折扣，第5行起=商品）。saved_at 为最近一次成功同步时间。"
     data.setdefault("shop", {"name": "拍立得价格计算器", "contact": "微信：Acssxiaolei", "notice": ""})
     data["saved_at"] = saved_at
     data.setdefault("currency", "¥")
-    # 年份折扣优先从表格行读取（27年/26年行），读不到时用默认值
-    discounts = extract_discounts(rows)
-    if discounts:
-        data["discounts"] = discounts
+    data["discounts"] = new_discounts
+    if d_labels:
+        data["discount_labels"] = d_labels
     else:
-        data.setdefault("discounts", {"2027": -8, "2026": -23})
+        data.pop("discount_labels", None)
     data["groups"] = new_groups
     with open(PRICES_JSON, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
