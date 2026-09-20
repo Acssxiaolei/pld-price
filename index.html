@@ -117,17 +117,17 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
    生成 prices.json 并发布，本页每 60 秒自动检查更新。
    ===================================================================== */
 window.PRICE_DATA = {
-  "_说明": "价格数据由同步脚本自动从腾讯文档表格「计算器价格」列生成，请勿手改；改价请在腾讯文档表格中操作。saved_at 为云电脑最近一次同步时间。discounts 为年份折扣（27年每盒-5元，26年每盒-20元）。",
+  "_说明": "价格数据由 GitHub Actions 定时从腾讯文档表格自动生成，请勿手改；改价请在腾讯文档表格中操作（第2~3行=年份折扣，第5行起=商品）。saved_at 为最近一次成功同步时间。",
   "shop": {
     "name": "拍立得价格计算器",
     "contact": "微信：Acssxiaolei",
     "notice": ""
   },
-  "saved_at": "2026-09-18 15:08",
+  "saved_at": "2026-09-20 09:46",
   "currency": "¥",
   "discounts": {
-    "2027": -8,
-    "2026": -23
+    "2027": -5,
+    "2026": -20
   },
   "groups": [
     {
@@ -135,7 +135,7 @@ window.PRICE_DATA = {
       "name": "mini20p 盒装",
       "unit": "盒",
       "spec": "20 张/盒",
-      "price": 116,
+      "price": 117,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -147,7 +147,7 @@ window.PRICE_DATA = {
       "name": "mini10p 盒装",
       "unit": "盒",
       "spec": "10 张/盒",
-      "price": 58,
+      "price": 58.5,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -159,7 +159,7 @@ window.PRICE_DATA = {
       "name": "迷你锡纸",
       "unit": "包",
       "spec": "散装",
-      "price": 56,
+      "price": 56.5,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -207,7 +207,7 @@ window.PRICE_DATA = {
       "name": "WIDE 锡纸",
       "unit": "包",
       "spec": "散装",
-      "price": 69,
+      "price": 70,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -315,7 +315,7 @@ window.PRICE_DATA = {
       "name": "双子星",
       "unit": "盒",
       "spec": "mini 相纸",
-      "price": 89,
+      "price": 88,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -478,8 +478,12 @@ window.PRICE_DATA = {
       "image": "",
       "items": []
     }
-  ]
-};
+  ],
+  "discount_labels": {
+    "2027": "27年 不满一年",
+    "2026": "26年"
+  }
+};;
 
 /* ==CALC-CORE-START== */
 function toNum(v){ var n = Number(v); return Number.isFinite(n) ? n : 0; }

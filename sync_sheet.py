@@ -171,10 +171,10 @@ def run_once():
         rows, updated_at = extract_sheet()
     except Exception as e:
         print("[sync] 读取表格失败:", e)
-        return False
+        sys.exit(1)
     if not rows:
         print("[sync] 表格无数据，跳过")
-        return False
+        sys.exit(1)
     # GitHub 服务器为 UTC，页面时间必须用北京时间（UTC+8）
     saved_at = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M")
     cur = load_current()
