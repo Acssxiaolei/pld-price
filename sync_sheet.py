@@ -103,14 +103,16 @@ def extract_sheet():
 
 
 # 表格布局约定：
-#   第2~3行（idx 1、2）= 年份折扣（A=名称，B=折扣价格，负数）
-#   第5行起（idx >= 4）= 商品（A=名称，B=计算器价格）
-DISCOUNT_ROW_KEYS = {1: "2027", 2: "2026"}
+#   第2行（idx 1）= 一年以上档（A=名称，B=可留空，无折扣）
+#   第3行（idx 2）= 27年档（A=名称，B=折扣价，写正数表示减X元）
+#   第4行（idx 3）= 26年档（A=名称，B=折扣价，写正数表示减X元）
+#   第6行起（idx >= 5）= 商品（A=名称，B=计算器价格）
+DISCOUNT_ROW_KEYS = {1: "now", 2: "2027", 3: "2026"}
 
 
 def parse_discounts(rows):
-    """从折扣行（idx 1/2）解析年份折扣，返回 (labels, amounts)。
-    labels: {'2027': '27年', ...}；amounts: {'2027': -6, ...}"""
+    """从折扣行（idx 1/2/3）解析年份折扣，返回 (labels, amounts)。
+    labels: {'now': '一年以上', '2027': '27年', ...}；amounts: {'2027': -5, ...}"""
     labels, amounts = {}, {}
     for idx, name, price in rows:
         key = DISCOUNT_ROW_KEYS.get(idx)
@@ -118,8 +120,10 @@ def parse_discounts(rows):
             continue
         if name:
             labels[key] = str(name).strip()
+        if key == "now":
+            continue  # 一年以上为基础价档，无折扣
         if isinstance(price, (int, float)):
-            amounts[key] = -abs(int(price))
+            amounts[key] = -abs(int(price))  # 表格写正数（减X元），存储为负
     return labels, amounts
 
 
@@ -178,8 +182,8 @@ def run_once():
     # GitHub 服务器为 UTC，页面时间必须用北京时间（UTC+8）
     saved_at = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M")
     cur = load_current()
-    # 按行号分离：折扣行 idx 1/2；商品行 idx >= 4（第5行起）
-    goods_rows = [x for x in rows if x[0] >= 4]
+    # 按行号分离：折扣行 idx 1/2/3；商品行 idx >= 5（第6行起）
+    goods_rows = [x for x in rows if x[0] >= 5]
     new_groups = build_groups(goods_rows, cur)
     # 年份折扣：第2~3行（名称可改，行号固定）
     d_labels, d_amounts = parse_discounts(rows)
