@@ -71,14 +71,14 @@ def extract_sheet():
                         if (v.formulaResult && v.formulaResult.value !== undefined) return v.formulaResult.value;
                         return '';
                     }
-                    return v;
+                    return (v === null || v === undefined) ? '' : v;
                 };
                 const out = [];
                 const maxR = Math.min(120, sheet.getRowCount());
                 for (let r=0; r<maxR; r++) {
                     let a='', b='';
-                    try { const cd=sheet.getCellDataAtPosition(r,0); a=String(getVal(cd)||''); } catch(e){}
-                    try { const cd=sheet.getCellDataAtPosition(r,1); b=String(getVal(cd)||''); } catch(e){}
+                    try { const v=getVal(sheet.getCellDataAtPosition(r,0)); a=(v===null||v===undefined)?'':String(v); } catch(e){}
+                    try { const v=getVal(sheet.getCellDataAtPosition(r,1)); b=(v===null||v===undefined)?'':String(v); } catch(e){}
                     if (a || b) out.push([r, a, b]);
                 }
                 return {ok:true, rows: out};
@@ -91,12 +91,14 @@ def extract_sheet():
                     continue
                 name, price = row[1], row[2]
                 if name and name != "名称":
-                    try:
-                        price_num = float(price)
-                    except (TypeError, ValueError):
-                        price_num = None
-                    if price_num is not None:
-                        rows.append((row[0], name, price_num))
+                    # 价格可留空（如「一年以上」档位只填名称）；名称必须保留
+                    price_num = None
+                    if price not in ("", None):
+                        try:
+                            price_num = float(price)
+                        except (TypeError, ValueError):
+                            price_num = None
+                    rows.append((row[0], name, price_num))
         finally:
             browser.close()
     return rows, updated_at
@@ -182,8 +184,8 @@ def run_once():
     # GitHub 服务器为 UTC，页面时间必须用北京时间（UTC+8）
     saved_at = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M")
     cur = load_current()
-    # 按行号分离：折扣行 idx 1/2/3；商品行 idx >= 5（第6行起）
-    goods_rows = [x for x in rows if x[0] >= 5]
+    # 按行号分离：折扣行 idx 1/2/3；商品行 idx >= 5（第6行起，且必须有价格）
+    goods_rows = [x for x in rows if x[0] >= 5 and x[2] is not None]
     new_groups = build_groups(goods_rows, cur)
     # 年份折扣：第2~3行（名称可改，行号固定）
     d_labels, d_amounts = parse_discounts(rows)
