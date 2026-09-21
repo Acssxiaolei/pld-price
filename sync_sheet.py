@@ -17,6 +17,7 @@ sync_sheet.py — GitHub Actions 版：腾讯文档表格 → prices.json 自动
 import json
 import os
 import re
+import sys
 import time
 import datetime
 from zoneinfo import ZoneInfo
@@ -46,62 +47,76 @@ UNIT_MAP = {"一次性胶片机": "台", "迷你锡纸": "包", "SQ 锡纸": "�
 
 def extract_sheet():
     """用 playwright 打开表格，返回 (rows, updated_at)。
-    rows: [[行号(idx, 0起), 名称, 价格数值], ...]；updated_at 为表格首行「更新时间」文本。"""
+    rows: [[行号(idx, 0起), 名称, 价格数值], ...]；updated_at 为表格首行「更新时间」文本。
+    打开失败自动重试（最多 3 次）。"""
     from playwright.sync_api import sync_playwright
-    rows = []
-    updated_at = ""
     chromium_path = os.environ.get("CHROMIUM_PATH") or None
+    last_err = None
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            executable_path=chromium_path,
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
-        page = browser.new_page()
-        try:
-            page.goto(SHEET_URL, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(15000)
-            result = page.evaluate("""() => {
-                const wm = window.SpreadsheetApp.workbook.worksheetManager;
-                if (!wm || !wm.sheetList || !wm.sheetList.length) return {ok:false, err:'no sheet'};
-                const sheet = wm.sheetList[0];
-                const getVal = (cd) => {
-                    if (!cd) return '';
-                    let v = cd.value;
-                    if (v && typeof v === 'object') {
-                        if (v.formulaResult && v.formulaResult.value !== undefined) return v.formulaResult.value;
-                        return '';
+        for attempt in range(1, 4):
+            browser = None
+            try:
+                browser = p.chromium.launch(
+                    executable_path=chromium_path,
+                    args=["--no-sandbox", "--disable-dev-shm-usage"],
+                )
+                page = browser.new_page()
+                page.goto(SHEET_URL, wait_until="domcontentloaded", timeout=90000)
+                page.wait_for_timeout(15000)
+                result = page.evaluate("""() => {
+                    const wm = window.SpreadsheetApp.workbook.worksheetManager;
+                    if (!wm || !wm.sheetList || !wm.sheetList.length) return {ok:false, err:'no sheet'};
+                    const sheet = wm.sheetList[0];
+                    const getVal = (cd) => {
+                        if (!cd) return '';
+                        let v = cd.value;
+                        if (v && typeof v === 'object') {
+                            if (v.formulaResult && v.formulaResult.value !== undefined) return v.formulaResult.value;
+                            return '';
+                        }
+                        return (v === null || v === undefined) ? '' : v;
+                    };
+                    const out = [];
+                    const maxR = Math.min(120, sheet.getRowCount());
+                    for (let r=0; r<maxR; r++) {
+                        let a='', b='';
+                        try { const v=getVal(sheet.getCellDataAtPosition(r,0)); a=(v===null||v===undefined)?'':String(v); } catch(e){}
+                        try { const v=getVal(sheet.getCellDataAtPosition(r,1)); b=(v===null||v===undefined)?'':String(v); } catch(e){}
+                        if (a || b) out.push([r, a, b]);
                     }
-                    return (v === null || v === undefined) ? '' : v;
-                };
-                const out = [];
-                const maxR = Math.min(120, sheet.getRowCount());
-                for (let r=0; r<maxR; r++) {
-                    let a='', b='';
-                    try { const v=getVal(sheet.getCellDataAtPosition(r,0)); a=(v===null||v===undefined)?'':String(v); } catch(e){}
-                    try { const v=getVal(sheet.getCellDataAtPosition(r,1)); b=(v===null||v===undefined)?'':String(v); } catch(e){}
-                    if (a || b) out.push([r, a, b]);
-                }
-                return {ok:true, rows: out};
-            }""")
-            if not result.get("ok"):
-                raise RuntimeError(result.get("err", "extract failed"))
-            for row in result["rows"]:
-                if row[0] == 0:
-                    updated_at = str(row[1])
-                    continue
-                name, price = row[1], row[2]
-                if name and name != "名称":
-                    # 价格可留空（如「一年以上」档位只填名称）；名称必须保留
-                    price_num = None
-                    if price not in ("", None):
-                        try:
-                            price_num = float(price)
-                        except (TypeError, ValueError):
-                            price_num = None
-                    rows.append((row[0], name, price_num))
-        finally:
-            browser.close()
-    return rows, updated_at
+                    return {ok:true, rows: out};
+                }""")
+                if not result.get("ok"):
+                    raise RuntimeError(result.get("err", "extract failed"))
+                rows = []
+                updated_at = ""
+                for row in result["rows"]:
+                    if row[0] == 0:
+                        updated_at = str(row[1])
+                        continue
+                    name, price = row[1], row[2]
+                    if name and name != "名称":
+                        # 价格可留空（如「一年以上」档位只填名称）；名称必须保留
+                        price_num = None
+                        if price not in ("", None):
+                            try:
+                                price_num = float(price)
+                            except (TypeError, ValueError):
+                                price_num = None
+                        rows.append((row[0], name, price_num))
+                return rows, updated_at
+            except Exception as e:
+                last_err = e
+                print(f"[sync] 读取表格第 {attempt} 次失败: {e}")
+                if attempt < 3:
+                    time.sleep(5)
+            finally:
+                if browser:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+    raise RuntimeError(f"读取表格连续 3 次失败: {last_err}")
 
 
 # 表格布局约定：
