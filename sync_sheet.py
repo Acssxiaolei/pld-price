@@ -24,7 +24,10 @@ from zoneinfo import ZoneInfo
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRICES_JSON = os.path.join(BASE_DIR, "prices.json")
-SHEET_URL = "https://docs.qq.com/sheet/DTW9YWkh2dkhZWUFn?tab=BB08J2"
+# 腾讯文档链接从 GitHub Actions Secret（SHEET_URL）读取，避免公开在仓库代码中
+SHEET_URL = os.environ.get("SHEET_URL", "")
+if not SHEET_URL:
+    raise SystemExit("缺少 SHEET_URL 环境变量（腾讯文档链接未配置）")
 
 # 表格名称 → 固定 id（商品）；其余自动分配 fl-xx
 NAME_TO_ID = {

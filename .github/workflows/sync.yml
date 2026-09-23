@@ -33,6 +33,8 @@ jobs:
           playwright install chromium --with-deps
 
       - name: 读取腾讯文档并同步价格
+        env:
+          SHEET_URL: ${{ secrets.SHEET_URL }}
         run: python3 sync_sheet.py
 
       - name: 部署网页
