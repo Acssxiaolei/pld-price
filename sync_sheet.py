@@ -2,8 +2,8 @@
 """
 sync_sheet.py — GitHub Actions 版：腾讯文档表格 → prices.json 自动同步
 
-数据源：腾讯文档表格（公开只读分享）
-  https://docs.qq.com/sheet/DTW9YWkh2dkhZWUFn?tab=BB08J2
+数据源：腾讯文档表格（公开只读分享），链接通过环境变量 SHEET_URL 传入
+  （由 GitHub Actions Secret 提供，不在代码中明文保存）。
   只读取「名称」(A列) 与「计算器价格」(B列)。
 
 流程（由 GitHub Actions 每 30 分钟触发一次）：
