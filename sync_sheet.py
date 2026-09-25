@@ -51,12 +51,12 @@ UNIT_MAP = {"一次性胶片机": "台", "迷你锡纸": "包", "SQ 锡纸": "�
 def extract_sheet():
     """用 playwright 打开表格，返回 (rows, updated_at)。
     rows: [[行号(idx, 0起), 名称, 价格数值], ...]；updated_at 为表格首行「更新时间」文本。
-    打开失败自动重试（最多 3 次）。"""
+    打开失败自动重试（最多 5 次，间隔 30 秒，降低连续请求被限流概率）。"""
     from playwright.sync_api import sync_playwright
     chromium_path = os.environ.get("CHROMIUM_PATH") or None
     last_err = None
     with sync_playwright() as p:
-        for attempt in range(1, 4):
+        for attempt in range(1, 6):
             browser = None
             try:
                 browser = p.chromium.launch(
@@ -111,15 +111,15 @@ def extract_sheet():
             except Exception as e:
                 last_err = e
                 print(f"[sync] 读取表格第 {attempt} 次失败: {e}")
-                if attempt < 3:
-                    time.sleep(5)
+                if attempt < 5:
+                    time.sleep(30)
             finally:
                 if browser:
                     try:
                         browser.close()
                     except Exception:
                         pass
-    raise RuntimeError(f"读取表格连续 3 次失败: {last_err}")
+    raise RuntimeError(f"读取表格连续 5 次失败: {last_err}")
 
 
 # 表格布局约定：
