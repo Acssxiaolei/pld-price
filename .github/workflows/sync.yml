@@ -54,13 +54,39 @@ jobs:
         run: python3 sync_sheet.py
 
       - name: 部署网页
+        id: upload
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
 
-      - name: 发布到 Pages
+      - name: 发布到 Pages（官方通道）
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: 官方发布失败，30 秒后 API 重试（最多 2 次）
+        if: steps.deployment.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "官方发布失败，改用 API 重试部署..."
+          ARTIFACT_ID="${{ steps.upload.outputs.artifact_id }}"
+          for i in 1 2; do
+            sleep 30
+            CODE=$(curl -s -o /tmp/deploy_resp.json -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "{\"artifact_id\":\"$ARTIFACT_ID\"}" \
+              "https://api.github.com/repos/Acssxiaolei/pld-price/pages/deployments")
+            echo "API 重试第 ${i} 次 HTTP $CODE"
+            if [ "$CODE" = "201" ] || [ "$CODE" = "200" ]; then
+              echo "API 重试部署成功"
+              exit 0
+            fi
+          done
+          echo "API 重试仍失败，交由最外层补触发兜底"
+          exit 1
 
       - name: 失败后 60 秒自动补触发一次（仅非重试 run）
         if: failure() && github.event.inputs.retry != 'true'
