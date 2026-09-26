@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      retry:
+        type: boolean
+        default: false
+        description: 失败补触发的重试标记（自动使用，无需手动）
 
 permissions:
   contents: read
@@ -56,3 +61,18 @@ jobs:
       - name: 发布到 Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: 失败后 60 秒自动补触发一次（仅非重试 run）
+        if: failure() && github.event.inputs.retry != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "同步失败，60 秒后自动补触发一次（重试标记 run）..."
+          sleep 60
+          curl -s -o /dev/null -w "补触发 HTTP %{http_code}\n" \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"main","inputs":{"retry":"true"}}' \
+            "https://api.github.com/repos/Acssxiaolei/pld-price/actions/workflows/sync.yml/dispatches"
