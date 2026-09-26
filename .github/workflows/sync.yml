@@ -32,6 +32,17 @@ jobs:
           pip install playwright
           playwright install chromium --with-deps
 
+      - name: 诊断腾讯文档连通性
+        run: |
+          echo "--- 1. DNS 解析 ---"
+          getent hosts docs.qq.com || true
+          echo "--- 2. TCP+TLS+HTTP 测试 (30s) ---"
+          curl -sS -o /dev/null -w "http_code=%{http_code} time_total=%{time_total}s connect=%{time_connect}s\n" -m 30 https://docs.qq.com/ || echo "curl 失败 exit=$?"
+          echo "--- 3. 表格 URL 测试 ---"
+          curl -sS -o /dev/null -w "http_code=%{http_code} time_total=%{time_total}s\n" -m 30 "$SHEET_URL" || echo "curl 失败 exit=$?"
+        env:
+          SHEET_URL: ${{ secrets.SHEET_URL }}
+
       - name: 读取腾讯文档并同步价格
         env:
           SHEET_URL: ${{ secrets.SHEET_URL }}
