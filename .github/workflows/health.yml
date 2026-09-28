@@ -1,0 +1,60 @@
+name: 每日健康检查
+
+on:
+  schedule:
+    - cron: '30 12 * * *'   # 每天 20:30 北京时间
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 检查线上价格数据新鲜度
+        id: check
+        run: |
+          TS=$(curl -s -o /tmp/prices.json -w "%{http_code}" -m 30 "https://acssxiaolei.github.io/pld-price/prices.json")
+          echo "线上 prices.json HTTP=$TS"
+          if [ "$TS" != "200" ]; then
+            echo "FAIL http=$TS"
+            echo "msg=价格数据页面无法访问（HTTP $TS）" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          SAVED=$(python3 -c "import json; print(json.load(open('/tmp/prices.json', encoding='utf-8'))['saved_at'])")
+          echo "saved_at=$SAVED"
+          python3 - "$SAVED" <<'EOF'
+import sys
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+saved = datetime.strptime(sys.argv[1], "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+now = datetime.now(ZoneInfo("Asia/Shanghai"))
+mins = (now - saved).total_seconds() / 60
+print(f"距上次更新 {mins:.0f} 分钟")
+if mins > 40:
+    print("STALE")
+    open("/tmp/msg.txt", "w", encoding="utf-8").write(f"价格数据已 {mins:.0f} 分钟未更新（最后更新于 {saved.strftime('%Y-%m-%d %H:%M')}），请检查腾讯表格分享、cron-job 触发和工作流状态。")
+else:
+    print("OK")
+EOF
+          if [ -f /tmp/msg.txt ]; then
+            echo "msg=$(cat /tmp/msg.txt)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 异常时创建 Issue 通知
+        if: steps.check.outputs.msg != ''
+        uses: actions/github-script@v7
+        env:
+          MSG: ${{ steps.check.outputs.msg }}
+        with:
+          script: |
+            const msg = process.env.MSG;
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '价格同步异常告警',
+              body: msg + '\n\n（每日健康检查自动生成，非价格问题；请检查后关闭此 Issue）'
+            });
