@@ -33,6 +33,19 @@ input,button{font-family:inherit}
 .totalbar .tl{display:flex;align-items:baseline;gap:10px;min-width:0;margin:0 auto}
 .totalbar .clear{position:absolute;right:16px;top:50%;transform:translateY(-50%);flex:none;font-size:12px;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink2);cursor:pointer;transition:all .15s}
 .totalbar .clear:hover{background:var(--paper);color:var(--ink1);border-color:var(--ink3)}
+/* 盒损独立输入条（小票上方） */
+.dmgbar{
+  display:flex;align-items:center;gap:8px;padding:8px 16px;
+  background:var(--paper);border-bottom:1px solid var(--line);
+}
+.dmgbar .dmg-label{font-size:13px;font-weight:700;color:var(--ink1)}
+.dmgbar input{
+  width:88px;height:32px;text-align:center;font-size:15px;font-weight:700;
+  border:1px solid #D8D3C8;border-radius:8px;background:#fff;color:var(--ink);outline:none;
+  -moz-appearance:textfield;
+}
+.dmgbar input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,52,42,.12)}
+.dmgbar .dmg-hint{font-size:12px;color:var(--ink3)}
 /* ===== 购物小票 ===== */
 .receipt{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px 12px;font-size:12.5px;display:none}
 .receipt.show{display:block}
@@ -44,7 +57,7 @@ input,button{font-family:inherit}
 /* ===== 表格 ===== */
 .table{background:var(--card);border-bottom:1px solid var(--line)}
 .row{
-  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(4,minmax(52px,84px));
+  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(3,minmax(64px,96px));
   gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);
 }
 .row:last-child{border-bottom:none}
@@ -55,7 +68,7 @@ input,button{font-family:inherit}
 .nm .bd{display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:600;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 .c-price{font-size:16px;font-weight:800;color:var(--accent);white-space:nowrap}
 .c-price .u{font-size:11px;color:var(--ink3);font-weight:500}
-.qwrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;grid-column:3/-1}
+.qwrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;grid-column:3/-1}
 .qwrap input{
   width:100%;height:34px;text-align:center;font-size:15px;font-weight:700;
   border:1px solid #D8D3C8;border-radius:9px;background:#fff;color:var(--ink);outline:none;
@@ -99,6 +112,12 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
     <span class="tl"><span class="lb">总价</span><span class="num" id="totalNum">¥0</span><span class="sub" id="totalSub"></span></span>
     <button class="clear" id="clearBtn" type="button">清空</button>
   </section>
+
+  <div class="dmgbar" id="dmgbar">
+    <span class="dmg-label">盒损</span>
+    <input id="dmgQty" type="number" min="0" step="1" inputmode="decimal" placeholder="盒损数量">
+    <span class="dmg-hint" id="dmgHint">每盒 -2 元</span>
+  </div>
 
   <div id="receipt" class="receipt"></div>
 
@@ -589,8 +608,6 @@ function rowHTML(g){
   var badge = g.badge ? '<span class="bd">' + escapeHtml(g.badge) + '</span>' : '';
   var ph27t = dLabels['2027'];
   var ph26t = dLabels['2026'];
-  var dmg = toNum(discounts['damage']);
-  var phDmg = dLabels['damage'];
   var priceHTML = g._formulaError
     ? '<span class="c-price" style="font-size:13px;color:var(--ink3)">公式错误</span>'
     : '<span class="c-price">' + data.currency + formatMoney(toNum(g.price)) + '<span class="u">/' + escapeHtml(unit) + '</span></span>';
@@ -603,7 +620,6 @@ function rowHTML(g){
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['now']) + '" data-y="now">'
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(ph27t) + '" data-y="2027">'
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(ph26t) + '" data-y="2026">'
-    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(phDmg) + '" data-y="damage">'
     + '</div>'
     + '</div>';
 }
@@ -647,19 +663,21 @@ function render(){
   discounts = (data.discounts && typeof data.discounts === 'object') ? data.discounts : {};
   var dl = (data.discount_labels && typeof data.discount_labels === 'object') ? data.discount_labels : {};
   dLabels = { 'now': dl['now'] || '一年以上', '2027': dl['2027'] || '27年', '2026': dl['2026'] || '26年', 'damage': dl['damage'] || '盒损' };
+  /* 盒损独立输入条：每盒抵扣提示随数据更新 */
+  var dmgV = toNum(discounts['damage']);
+  if (dmgHintEl) dmgHintEl.textContent = dmgV ? ('每盒 ' + dmgV + ' 元') : '';
   if (!list.length){
     el.tableBox.innerHTML = '<p class="empty">暂未上架商品</p>';
     return;
   }
-  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']), dmg = toNum(discounts['damage']);
+  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
   var half27 = d27 ? halfDisc(d27) : 0;
   var half26 = d26 ? halfDisc(d26) : 0;
   var head27 = d27 ? escapeHtml(dLabels['2027']) + '<br>(' + d27 + '/' + half27 + ')' : escapeHtml(dLabels['2027']);
   var head26 = d26 ? escapeHtml(dLabels['2026']) + '<br>(' + d26 + '/' + half26 + ')' : escapeHtml(dLabels['2026']);
-  var headDmg = dmg ? escapeHtml(dLabels['damage']) + '<br>(' + dmg + ')' : escapeHtml(dLabels['damage']);
   el.tableBox.innerHTML = '<div class="row head">'
     + '<div class="c-name">商品</div><div class="c-price">单价</div>'
-    + '<div class="qwrap"><span>' + escapeHtml(dLabels['now']) + '</span><span>' + head27 + '</span><span>' + head26 + '</span><span>' + headDmg + '</span></div>'
+    + '<div class="qwrap"><span>' + escapeHtml(dLabels['now']) + '</span><span>' + head27 + '</span><span>' + head26 + '</span></div>'
     + '</div>'
     + list.map(rowHTML).join('');
   recompute();
@@ -674,7 +692,7 @@ function setSourceBadge(){
 }
 
 function recompute(){
-  var total = 0, boxSum = 0, any = false, damageCut = 0, damageBoxes = 0;
+  var total = 0, boxSum = 0, any = false;
   var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']), dmg = toNum(discounts['damage']);
   var rows = el.tableBox.querySelectorAll('.row[data-id]');
   var receiptLines = [];
@@ -682,25 +700,18 @@ function recompute(){
     var g = groupsById[row.getAttribute('data-id')];
     if (!g) return;
     var inputs = row.querySelectorAll('input');
-    var now = inputs[0].value, y27 = inputs[1].value, y26 = inputs[2].value, ydmg = inputs[3].value;
-    var n0 = toNum(now), n1 = toNum(y27), n2 = toNum(y26), nd = toNum(ydmg);
+    var now = inputs[0].value, y27 = inputs[1].value, y26 = inputs[2].value;
+    var n0 = toNum(now), n1 = toNum(y27), n2 = toNum(y26);
     if (n0 < 0) n0 = 0;
     if (n1 < 0) n1 = 0;
     if (n2 < 0) n2 = 0;
-    if (nd < 0) nd = 0;
-    var n = n0 + n1 + n2 + nd;
+    var n = n0 + n1 + n2;
     boxSum += n;
     if (n > 0) any = true;
     if (g._formulaError) return;
     var r27 = discFor(g.name, d27), r26 = discFor(g.name, d26);
     var p = toNum(g.price), name = g.name;
     total += lineTotal(p, now, y27, y26, r27, r26);
-    /* 盒损单独计算：按原价计入，抵扣从总账单扣除 */
-    total += p * nd;
-    if (nd > 0){
-      damageCut += Math.abs(dmg) * nd;
-      damageBoxes += nd;
-    }
     /* 购物小票明细：名称（年限）；单价 X；数量 N；总价 Y */
     function pushLine(tag, unitPrice, qty){
       if (qty <= 0) return;
@@ -711,12 +722,16 @@ function recompute(){
     pushLine(dLabels['now'], p, n0);
     pushLine(dLabels['2027'], p + r27, n1);
     pushLine(dLabels['2026'], p + r26, n2);
-    pushLine(dLabels['damage'], p, nd);
   });
+  /* 盒损独立计算：盒损数量 × 每盒抵扣 = 减少额度，从总账单扣除 */
+  var dmgQtyEl = document.getElementById('dmgQty');
+  var nd = dmgQtyEl ? toNum(dmgQtyEl.value) : 0;
+  if (nd < 0) nd = 0;
+  var damageCut = nd * Math.abs(dmg);
   total -= damageCut;
   el.totalNum.textContent = data.currency + formatMoney(total);
-  el.totalSub.textContent = damageCut > 0
-    ? ('盒损 ' + damageBoxes + ' 盒 抵扣 -' + formatMoney(damageCut) + ' 元')
+  el.totalSub.textContent = nd > 0
+    ? ('盒损 ' + nd + ' 盒 抵扣 -' + formatMoney(damageCut) + ' 元')
     : '';
   /* 渲染小票 */
   var rc = el.receipt;
@@ -734,10 +749,14 @@ function recompute(){
 el.tableBox.addEventListener('input', function(e){
   if (e.target && e.target.tagName === 'INPUT') recompute();
 });
+/* 盒损独立输入条：输入即重算，并同步每盒抵扣提示 */
+var dmgQtyEl = document.getElementById('dmgQty'), dmgHintEl = document.getElementById('dmgHint');
+if (dmgQtyEl) dmgQtyEl.addEventListener('input', recompute);
 
-/* 清空按钮：一键清空所有盒数输入 */
+/* 清空按钮：一键清空所有盒数输入（含盒损） */
 el.clearBtn.addEventListener('click', function(){
   el.tableBox.querySelectorAll('.row input').forEach(function(i){ i.value = ''; });
+  if (dmgQtyEl) dmgQtyEl.value = '';
   recompute();
 });
 
