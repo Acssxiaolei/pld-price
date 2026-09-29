@@ -44,12 +44,12 @@ input,button{font-family:inherit}
 /* ===== 表格 ===== */
 .table{background:var(--card);border-bottom:1px solid var(--line)}
 .row{
-  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(3,minmax(56px,84px));
+  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(3,minmax(64px,96px));
   gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);
 }
 .row:last-child{border-bottom:none}
 .row.head{background:var(--paper);font-size:11px;color:var(--ink3);padding-top:6px;padding-bottom:6px}
-.row.head .qwrap span{white-space:nowrap;text-align:center}
+.row.head .qwrap span{white-space:normal;text-align:center;line-height:1.35}
 .c-name{min-width:0;display:flex;flex-direction:column;gap:1px}
 .nm{font-size:13.5px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
 .nm .bd{display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:600;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
@@ -63,7 +63,7 @@ input,button{font-family:inherit}
 }
 .qwrap input::-webkit-outer-spin-button,.qwrap input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .qwrap input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,52,42,.12)}
-.qwrap input::placeholder{color:#C4C0B6;font-weight:400}
+.qwrap input::placeholder{color:#C4C0B6;font-weight:400;font-size:12px}
 .empty{padding:24px;text-align:center;color:var(--ink3)}
 footer{padding:14px 16px 22px;text-align:center;font-size:11.5px;color:var(--ink3);line-height:1.8}
 input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -567,9 +567,23 @@ function escapeHtml(s){
   });
 }
 
+/* 20p 商品判断：名称去掉空格后含 "20p" 即为满额折扣，否则对半减 */
+function is20p(name){
+  return /20p/i.test(String(name || '').replace(/\s+/g, ''));
+}
+/* 实际折扣：20p 用表格满额值，其他商品用满额的一半 */
+function discFor(name, base){
+  var d = toNum(base);
+  return is20p(name) ? d : (Math.round(d / 2 * 100) / 100);
+}
+
 function rowHTML(g){
   var unit = g.unit || '盒';
   var badge = g.badge ? '<span class="bd">' + escapeHtml(g.badge) + '</span>' : '';
+  var ph27 = discFor(g.name, discounts['2027']);
+  var ph26 = discFor(g.name, discounts['2026']);
+  var ph27t = ph27 ? '(' + ph27 + ')' : dLabels['2027'];
+  var ph26t = ph26 ? '(' + ph26 + ')' : dLabels['2026'];
   var priceHTML = g._formulaError
     ? '<span class="c-price" style="font-size:13px;color:var(--ink3)">公式错误</span>'
     : '<span class="c-price">' + data.currency + formatMoney(toNum(g.price)) + '<span class="u">/' + escapeHtml(unit) + '</span></span>';
@@ -580,8 +594,8 @@ function rowHTML(g){
     + priceHTML
     + '<div class="qwrap">'
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['now']) + '" data-y="now">'
-    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['2027']) + '" data-y="2027">'
-    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['2026']) + '" data-y="2026">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(ph27t) + '" data-y="2027">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(ph26t) + '" data-y="2026">'
     + '</div>'
     + '</div>';
 }
@@ -630,8 +644,10 @@ function render(){
     return;
   }
   var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
-  var head27 = d27 ? dLabels['2027'] + '(' + (d27 > 0 ? '+' : '') + d27 + ')' : dLabels['2027'];
-  var head26 = d26 ? dLabels['2026'] + '(' + (d26 > 0 ? '+' : '') + d26 + ')' : dLabels['2026'];
+  var half27 = d27 ? (Math.round(d27 / 2 * 100) / 100) : 0;
+  var half26 = d26 ? (Math.round(d26 / 2 * 100) / 100) : 0;
+  var head27 = d27 ? escapeHtml(dLabels['2027']) + '<br>(' + d27 + '/' + half27 + ')' : escapeHtml(dLabels['2027']);
+  var head26 = d26 ? escapeHtml(dLabels['2026']) + '<br>(' + d26 + '/' + half26 + ')' : escapeHtml(dLabels['2026']);
   el.tableBox.innerHTML = '<div class="row head">'
     + '<div class="c-name">商品</div><div class="c-price">单价</div>'
     + '<div class="qwrap"><span>' + escapeHtml(dLabels['now']) + '</span><span>' + head27 + '</span><span>' + head26 + '</span></div>'
@@ -666,7 +682,8 @@ function recompute(){
     boxSum += n;
     if (n > 0) any = true;
     if (g._formulaError) return;
-    total += lineTotal(toNum(g.price), now, y27, y26, d27, d26);
+    var r27 = discFor(g.name, d27), r26 = discFor(g.name, d26);
+    total += lineTotal(toNum(g.price), now, y27, y26, r27, r26);
     /* 购物小票明细：名称（年限）；单价 X；数量 N；总价 Y */
     var p = toNum(g.price), name = g.name;
     function pushLine(tag, unitPrice, qty){
@@ -676,8 +693,8 @@ function recompute(){
         + formatMoney(unitPrice) + '；数量 ' + qty + '；总价 ' + formatMoney(sub));
     }
     pushLine(dLabels['now'], p, n0);
-    pushLine(dLabels['2027'], p + d27, n1);
-    pushLine(dLabels['2026'], p + d26, n2);
+    pushLine(dLabels['2027'], p + r27, n1);
+    pushLine(dLabels['2026'], p + r26, n2);
   });
   el.totalNum.textContent = data.currency + formatMoney(total);
   el.totalSub.textContent = '';
