@@ -33,6 +33,21 @@ input,button{font-family:inherit}
 .totalbar .tl{display:flex;align-items:baseline;gap:10px;min-width:0;margin:0 auto}
 .totalbar .clear{position:absolute;right:16px;top:50%;transform:translateY(-50%);flex:none;font-size:12px;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink2);cursor:pointer;transition:all .15s}
 .totalbar .clear:hover{background:var(--paper);color:var(--ink1);border-color:var(--ink3)}
+/* 盒损输入：融入总价栏操作区 */
+.dmgbox{display:flex;align-items:center;gap:7px;flex:none}
+.dmgbox label{font-size:12.5px;font-weight:700;color:var(--ink1);white-space:nowrap}
+.dmgbox input{
+  width:62px;height:30px;text-align:center;font-size:14px;font-weight:700;
+  border:1px solid #D8D3C8;border-radius:7px;background:#fff;color:var(--ink);outline:none;
+  -moz-appearance:textfield;
+}
+.dmgbox input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,52,42,.12)}
+.dmgbox .dmg-hint{font-size:11px;color:var(--ink3);white-space:nowrap}
+@media (max-width: 520px){
+  .dmgbox .dmg-hint{display:none}
+  .dmgbox input{width:56px}
+  .totalbar{gap:8px}
+}
 /* 盒损独立输入条（小票上方） */
 /* ===== 购物小票 ===== */
 .receipt{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px 12px;font-size:12.5px}
@@ -41,17 +56,8 @@ input,button{font-family:inherit}
 .receipt .rl:last-child{border-bottom:none}
 .receipt .rtotal{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px;padding-top:8px;border-top:1px dashed var(--ink3);font-weight:800}
 .receipt .rtotal .n{font-size:14px}
-/* 盒损行（小票第一行，与小票同风格） */
-.receipt .dmgrow{display:flex;align-items:center;gap:10px;padding:6px 0 8px}
-.receipt .dmg-lb{font-weight:700;color:var(--ink1);flex:none}
-.receipt .dmgrow input{
-  width:80px;height:30px;text-align:center;font-size:14px;font-weight:700;
-  border:1px solid #D8D3C8;border-radius:6px;background:#fff;color:var(--ink);outline:none;
-  -moz-appearance:textfield;
-}
-.receipt .dmgrow input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,52,42,.12)}
-.receipt .dmg-hint{font-size:11.5px;color:var(--ink3)}
-.receipt .dmgcut{color:var(--accent);font-weight:700}
+/* 盒损抵扣行（账单组成部分） */
+.receipt .dmgcut{color:var(--accent);font-weight:700;padding-bottom:2px}
 /* ===== 表格 ===== */
 .table{background:var(--card);border-bottom:1px solid var(--line)}
 .row{
@@ -108,15 +114,15 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
   <section class="totalbar">
     <span class="tl"><span class="lb">总价</span><span class="num" id="totalNum">¥0</span><span class="sub" id="totalSub"></span></span>
+    <span class="dmgbox">
+      <label for="dmgQty">盒损</label>
+      <input id="dmgQty" type="number" min="0" step="1" inputmode="decimal" placeholder="数量">
+      <span class="dmg-hint" id="dmgHint">每盒 -2 元</span>
+    </span>
     <button class="clear" id="clearBtn" type="button">清空</button>
   </section>
 
   <div id="receipt" class="receipt">
-    <div class="rl dmgrow">
-      <span class="dmg-lb" id="dmgLabel">盒损</span>
-      <input id="dmgQty" type="number" min="0" step="1" inputmode="decimal" placeholder="盒损数量">
-      <span class="dmg-hint" id="dmgHint">每盒 -2 元</span>
-    </div>
     <div class="rl dmgcut" id="dmgCut" style="display:none"></div>
     <div id="receiptBody"></div>
   </div>
