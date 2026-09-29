@@ -126,13 +126,14 @@ def extract_sheet():
 #   第2行（idx 1）= 一年以上档（A=名称，B=可留空，无折扣）
 #   第3行（idx 2）= 27年档（A=名称，B=折扣价，写正数表示减X元）
 #   第4行（idx 3）= 26年档（A=名称，B=折扣价，写正数表示减X元）
-#   第6行起（idx >= 5）= 商品（A=名称，B=计算器价格）
-DISCOUNT_ROW_KEYS = {1: "now", 2: "2027", 3: "2026"}
+#   第5行（idx 4）= 盒损档（A=名称，B=抵扣价，写正数表示减X元）
+#   第7行起（idx >= 6）= 商品（A=名称，B=计算器价格）
+DISCOUNT_ROW_KEYS = {1: "now", 2: "2027", 3: "2026", 4: "damage"}
 
 
 def parse_discounts(rows):
-    """从折扣行（idx 1/2/3）解析年份折扣，返回 (labels, amounts)。
-    labels: {'now': '一年以上', '2027': '27年', ...}；amounts: {'2027': -5, ...}"""
+    """从折扣行（idx 1/2/3/4）解析折扣，返回 (labels, amounts)。
+    labels: {'now': '一年以上', '2027': '27年', ...}；amounts: {'2027': -5, 'damage': -2, ...}"""
     labels, amounts = {}, {}
     for idx, name, price in rows:
         key = DISCOUNT_ROW_KEYS.get(idx)
@@ -202,12 +203,12 @@ def run_once():
     # GitHub 服务器为 UTC，页面时间必须用北京时间（UTC+8）
     saved_at = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M")
     cur = load_current()
-    # 按行号分离：折扣行 idx 1/2/3；商品行 idx >= 5（第6行起，且必须有价格）
-    goods_rows = [x for x in rows if x[0] >= 5 and x[2] is not None]
+    # 按行号分离：折扣行 idx 1/2/3/4；商品行 idx >= 6（第7行起，且必须有价格）
+    goods_rows = [x for x in rows if x[0] >= 6 and x[2] is not None]
     new_groups = build_groups(goods_rows, cur)
-    # 年份折扣：第2~3行（名称可改，行号固定）
+    # 折扣：第2~5行（名称可改，行号固定）
     d_labels, d_amounts = parse_discounts(rows)
-    new_discounts = d_amounts if d_amounts else {"2027": -8, "2026": -23}
+    new_discounts = d_amounts if d_amounts else {"2027": -8, "2026": -23, "damage": -2}
     changed = False
     if cur is None:
         changed = True
@@ -230,7 +231,7 @@ def run_once():
     # 每次同步都刷新 saved_at（页面顶部「价格更新」= GitHub 最近同步时间）；
     # 价格有变化时同样重写全部数据。
     data = cur if cur is not None else {}
-    data["_说明"] = "价格数据由 GitHub Actions 定时从腾讯文档表格自动生成，请勿手改；改价请在腾讯文档表格中操作（第2~3行=年份折扣，第5行起=商品）。saved_at 为最近一次成功同步时间。"
+    data["_说明"] = "价格数据由 GitHub Actions 定时从腾讯文档表格自动生成，请勿手改；改价请在腾讯文档表格中操作（第2~5行=档位折扣，第7行起=商品）。saved_at 为最近一次成功同步时间。"
     data.setdefault("shop", {"name": "拍立得价格计算器", "contact": "微信：Acssxiaolei", "notice": ""})
     data["saved_at"] = saved_at
     data.setdefault("currency", "¥")

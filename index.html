@@ -44,7 +44,7 @@ input,button{font-family:inherit}
 /* ===== 表格 ===== */
 .table{background:var(--card);border-bottom:1px solid var(--line)}
 .row{
-  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(3,minmax(64px,96px));
+  display:grid;grid-template-columns:minmax(0,1fr) auto repeat(4,minmax(52px,84px));
   gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);
 }
 .row:last-child{border-bottom:none}
@@ -55,7 +55,7 @@ input,button{font-family:inherit}
 .nm .bd{display:inline-block;background:var(--accent);color:#fff;font-size:10px;font-weight:600;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:1px}
 .c-price{font-size:16px;font-weight:800;color:var(--accent);white-space:nowrap}
 .c-price .u{font-size:11px;color:var(--ink3);font-weight:500}
-.qwrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;grid-column:3/-1}
+.qwrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;grid-column:3/-1}
 .qwrap input{
   width:100%;height:34px;text-align:center;font-size:15px;font-weight:700;
   border:1px solid #D8D3C8;border-radius:9px;background:#fff;color:var(--ink);outline:none;
@@ -127,7 +127,8 @@ window.PRICE_DATA = {
   "currency": "¥",
   "discounts": {
     "2027": -5,
-    "2026": -20
+    "2026": -20,
+    "damage": -2
   },
   "groups": [
     {
@@ -481,7 +482,8 @@ window.PRICE_DATA = {
   ],
   "discount_labels": {
     "2027": "27年 不满一年",
-    "2026": "26年"
+    "2026": "26年",
+    "damage": "盒损"
   }
 };;
 
@@ -559,7 +561,7 @@ var el = {
   receipt: $('#receipt'), clearBtn: $('#clearBtn'),
   footLine: $('#footLine'), footNote: $('#footNote')
 };
-var groupsById = {}, discounts = { 2027: 0, 2026: 0 }, dLabels = { 'now': '一年以上', '2027': '27年', '2026': '26年' };
+var groupsById = {}, discounts = { 2027: 0, 2026: 0, damage: 0 }, dLabels = { 'now': '一年以上', '2027': '27年', '2026': '26年', 'damage': '盒损' };
 
 function escapeHtml(s){
   return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c){
@@ -584,6 +586,8 @@ function rowHTML(g){
   var ph26 = discFor(g.name, discounts['2026']);
   var ph27t = ph27 ? '(' + ph27 + ')' : dLabels['2027'];
   var ph26t = ph26 ? '(' + ph26 + ')' : dLabels['2026'];
+  var dmg = toNum(discounts['damage']);
+  var phDmg = dmg ? '(' + dmg + ')' : dLabels['damage'];
   var priceHTML = g._formulaError
     ? '<span class="c-price" style="font-size:13px;color:var(--ink3)">公式错误</span>'
     : '<span class="c-price">' + data.currency + formatMoney(toNum(g.price)) + '<span class="u">/' + escapeHtml(unit) + '</span></span>';
@@ -596,6 +600,7 @@ function rowHTML(g){
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(dLabels['now']) + '" data-y="now">'
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(ph27t) + '" data-y="2027">'
     + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(ph26t) + '" data-y="2026">'
+    + '<input type="number" min="0" step="1" inputmode="decimal" placeholder="' + escapeHtml(phDmg) + '" data-y="damage">'
     + '</div>'
     + '</div>';
 }
@@ -638,19 +643,20 @@ function render(){
   list.forEach(function(g){ groupsById[g.id] = g; });
   discounts = (data.discounts && typeof data.discounts === 'object') ? data.discounts : {};
   var dl = (data.discount_labels && typeof data.discount_labels === 'object') ? data.discount_labels : {};
-  dLabels = { 'now': dl['now'] || '一年以上', '2027': dl['2027'] || '27年', '2026': dl['2026'] || '26年' };
+  dLabels = { 'now': dl['now'] || '一年以上', '2027': dl['2027'] || '27年', '2026': dl['2026'] || '26年', 'damage': dl['damage'] || '盒损' };
   if (!list.length){
     el.tableBox.innerHTML = '<p class="empty">暂未上架商品</p>';
     return;
   }
-  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
+  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']), dmg = toNum(discounts['damage']);
   var half27 = d27 ? (Math.round(d27 / 2 * 100) / 100) : 0;
   var half26 = d26 ? (Math.round(d26 / 2 * 100) / 100) : 0;
   var head27 = d27 ? escapeHtml(dLabels['2027']) + '<br>(' + d27 + '/' + half27 + ')' : escapeHtml(dLabels['2027']);
   var head26 = d26 ? escapeHtml(dLabels['2026']) + '<br>(' + d26 + '/' + half26 + ')' : escapeHtml(dLabels['2026']);
+  var headDmg = dmg ? escapeHtml(dLabels['damage']) + '<br>(' + dmg + ')' : escapeHtml(dLabels['damage']);
   el.tableBox.innerHTML = '<div class="row head">'
     + '<div class="c-name">商品</div><div class="c-price">单价</div>'
-    + '<div class="qwrap"><span>' + escapeHtml(dLabels['now']) + '</span><span>' + head27 + '</span><span>' + head26 + '</span></div>'
+    + '<div class="qwrap"><span>' + escapeHtml(dLabels['now']) + '</span><span>' + head27 + '</span><span>' + head26 + '</span><span>' + headDmg + '</span></div>'
     + '</div>'
     + list.map(rowHTML).join('');
   recompute();
@@ -666,24 +672,26 @@ function setSourceBadge(){
 
 function recompute(){
   var total = 0, boxSum = 0, any = false;
-  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']);
+  var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']), dmg = toNum(discounts['damage']);
   var rows = el.tableBox.querySelectorAll('.row[data-id]');
   var receiptLines = [];
   rows.forEach(function(row){
     var g = groupsById[row.getAttribute('data-id')];
     if (!g) return;
     var inputs = row.querySelectorAll('input');
-    var now = inputs[0].value, y27 = inputs[1].value, y26 = inputs[2].value;
-    var n0 = toNum(now), n1 = toNum(y27), n2 = toNum(y26);
+    var now = inputs[0].value, y27 = inputs[1].value, y26 = inputs[2].value, ydmg = inputs[3].value;
+    var n0 = toNum(now), n1 = toNum(y27), n2 = toNum(y26), nd = toNum(ydmg);
     if (n0 < 0) n0 = 0;
     if (n1 < 0) n1 = 0;
     if (n2 < 0) n2 = 0;
-    var n = n0 + n1 + n2;
+    if (nd < 0) nd = 0;
+    var n = n0 + n1 + n2 + nd;
     boxSum += n;
     if (n > 0) any = true;
     if (g._formulaError) return;
     var r27 = discFor(g.name, d27), r26 = discFor(g.name, d26);
     total += lineTotal(toNum(g.price), now, y27, y26, r27, r26);
+    total += (toNum(g.price) + dmg) * nd;
     /* 购物小票明细：名称（年限）；单价 X；数量 N；总价 Y */
     var p = toNum(g.price), name = g.name;
     function pushLine(tag, unitPrice, qty){
@@ -695,6 +703,7 @@ function recompute(){
     pushLine(dLabels['now'], p, n0);
     pushLine(dLabels['2027'], p + r27, n1);
     pushLine(dLabels['2026'], p + r26, n2);
+    pushLine(dLabels['damage'], p + dmg, nd);
   });
   el.totalNum.textContent = data.currency + formatMoney(total);
   el.totalSub.textContent = '';
