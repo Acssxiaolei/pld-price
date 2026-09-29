@@ -674,7 +674,7 @@ function setSourceBadge(){
 }
 
 function recompute(){
-  var total = 0, boxSum = 0, any = false;
+  var total = 0, boxSum = 0, any = false, damageCut = 0, damageBoxes = 0;
   var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']), dmg = toNum(discounts['damage']);
   var rows = el.tableBox.querySelectorAll('.row[data-id]');
   var receiptLines = [];
@@ -693,10 +693,15 @@ function recompute(){
     if (n > 0) any = true;
     if (g._formulaError) return;
     var r27 = discFor(g.name, d27), r26 = discFor(g.name, d26);
-    total += lineTotal(toNum(g.price), now, y27, y26, r27, r26);
-    total += (toNum(g.price) + dmg) * nd;
-    /* 购物小票明细：名称（年限）；单价 X；数量 N；总价 Y */
     var p = toNum(g.price), name = g.name;
+    total += lineTotal(p, now, y27, y26, r27, r26);
+    /* 盒损单独计算：按原价计入，抵扣从总账单扣除 */
+    total += p * nd;
+    if (nd > 0){
+      damageCut += Math.abs(dmg) * nd;
+      damageBoxes += nd;
+    }
+    /* 购物小票明细：名称（年限）；单价 X；数量 N；总价 Y */
     function pushLine(tag, unitPrice, qty){
       if (qty <= 0) return;
       var sub = Math.round(unitPrice * qty * 100) / 100;
@@ -706,10 +711,13 @@ function recompute(){
     pushLine(dLabels['now'], p, n0);
     pushLine(dLabels['2027'], p + r27, n1);
     pushLine(dLabels['2026'], p + r26, n2);
-    pushLine(dLabels['damage'], p + dmg, nd);
+    pushLine(dLabels['damage'], p, nd);
   });
+  total -= damageCut;
   el.totalNum.textContent = data.currency + formatMoney(total);
-  el.totalSub.textContent = '';
+  el.totalSub.textContent = damageCut > 0
+    ? ('盒损 ' + damageBoxes + ' 盒 抵扣 -' + formatMoney(damageCut) + ' 元')
+    : '';
   /* 渲染小票 */
   var rc = el.receipt;
   if (!receiptLines.length){
