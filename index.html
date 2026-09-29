@@ -573,21 +573,24 @@ function escapeHtml(s){
 function is20p(name){
   return /20p/i.test(String(name || '').replace(/\s+/g, ''));
 }
-/* 实际折扣：20p 用表格满额值，其他商品用满额的一半 */
-function discFor(name, base){
+/* 半价折扣：满额的一半，四舍五入取整（负数向远离零方向，如 -2.5 → -3） */
+function halfDisc(base){
   var d = toNum(base);
-  return is20p(name) ? d : (Math.round(d / 2 * 100) / 100);
+  var half = d / 2;
+  return half >= 0 ? Math.round(half) : -Math.round(-half);
+}
+/* 实际折扣：20p 用表格满额值，其他商品用满额的一半（取整） */
+function discFor(name, base){
+  return is20p(name) ? toNum(base) : halfDisc(base);
 }
 
 function rowHTML(g){
   var unit = g.unit || '盒';
   var badge = g.badge ? '<span class="bd">' + escapeHtml(g.badge) + '</span>' : '';
-  var ph27 = discFor(g.name, discounts['2027']);
-  var ph26 = discFor(g.name, discounts['2026']);
-  var ph27t = ph27 ? '(' + ph27 + ')' : dLabels['2027'];
-  var ph26t = ph26 ? '(' + ph26 + ')' : dLabels['2026'];
+  var ph27t = dLabels['2027'];
+  var ph26t = dLabels['2026'];
   var dmg = toNum(discounts['damage']);
-  var phDmg = dmg ? '(' + dmg + ')' : dLabels['damage'];
+  var phDmg = dLabels['damage'];
   var priceHTML = g._formulaError
     ? '<span class="c-price" style="font-size:13px;color:var(--ink3)">公式错误</span>'
     : '<span class="c-price">' + data.currency + formatMoney(toNum(g.price)) + '<span class="u">/' + escapeHtml(unit) + '</span></span>';
@@ -649,8 +652,8 @@ function render(){
     return;
   }
   var d27 = toNum(discounts['2027']), d26 = toNum(discounts['2026']), dmg = toNum(discounts['damage']);
-  var half27 = d27 ? (Math.round(d27 / 2 * 100) / 100) : 0;
-  var half26 = d26 ? (Math.round(d26 / 2 * 100) / 100) : 0;
+  var half27 = d27 ? halfDisc(d27) : 0;
+  var half26 = d26 ? halfDisc(d26) : 0;
   var head27 = d27 ? escapeHtml(dLabels['2027']) + '<br>(' + d27 + '/' + half27 + ')' : escapeHtml(dLabels['2027']);
   var head26 = d26 ? escapeHtml(dLabels['2026']) + '<br>(' + d26 + '/' + half26 + ')' : escapeHtml(dLabels['2026']);
   var headDmg = dmg ? escapeHtml(dLabels['damage']) + '<br>(' + dmg + ')' : escapeHtml(dLabels['damage']);
