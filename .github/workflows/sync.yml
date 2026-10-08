@@ -11,7 +11,7 @@ on:
         description: 失败补触发的重试标记（自动使用，无需手动）
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -52,6 +52,19 @@ jobs:
         env:
           SHEET_URL: ${{ secrets.SHEET_URL }}
         run: python3 sync_sheet.py
+
+      - name: 价格有变化则提交 prices.json（触发新 build version，确保 Pages 真正切换）
+        run: |
+          git config user.name "sync-bot"
+          git config user.email "sync-bot@users.noreply.github.com"
+          if ! git diff --quiet prices.json; then
+            git add prices.json
+            git commit -m "sync: 价格更新 $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')"
+            git push
+            echo "已提交新 prices.json"
+          else
+            echo "价格无变化，无需提交"
+          fi
 
       - name: 部署网页
         id: upload

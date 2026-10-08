@@ -228,8 +228,13 @@ def run_once():
             or (cur.get("discount_labels") or {}) != d_labels
         ):
             changed = True
-    # 每次同步都刷新 saved_at（页面顶部「价格更新」= GitHub 最近同步时间）；
-    # 价格有变化时同样重写全部数据。
+    # 只有价格真正变化时才重写 prices.json 并刷新 saved_at；
+    # 价格无变化时保持现有文件（避免每 5 分钟产生无意义 commit，
+    # 也让页面「价格更新时间」= 价格最后一次变化时间，语义正确）。
+    if not changed:
+        old_saved = cur.get("saved_at") if cur else "无"
+        print(f"[sync] 价格无变化，保持现有 prices.json（saved_at={old_saved}）")
+        return False
     data = cur if cur is not None else {}
     data["_说明"] = "价格数据由 GitHub Actions 定时从腾讯文档表格自动生成，请勿手改；改价请在腾讯文档表格中操作（第2~5行=档位折扣，第7行起=商品）。saved_at 为最近一次成功同步时间。"
     data.setdefault("shop", {"name": "拍立得价格计算器", "contact": "微信：Acssxiaolei", "notice": ""})
