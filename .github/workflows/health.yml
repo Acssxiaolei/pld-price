@@ -20,6 +20,8 @@ jobs:
 
       - name: 检查线上价格数据新鲜度
         id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 health_check.py
 
       - name: 异常时创建 Issue 通知
