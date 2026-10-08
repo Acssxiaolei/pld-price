@@ -115,7 +115,7 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   </section>
 
   <div id="receipt" class="receipt">
-    <div class="rl dmgrow">
+    <div class="rl dmgrow" style="display:none">
       <span class="dmg-lb">盒损抵扣</span>
       <input id="dmgQty" type="number" min="0" step="1" inputmode="decimal" placeholder="0">
       <span class="dmg-unit">盒 ×</span>
@@ -747,11 +747,14 @@ function recompute(){
   }
   /* 渲染小票明细到 receiptBody */
   var body = document.getElementById('receiptBody');
+  var receiptBox = document.getElementById('receipt');
   if (!body) return;
   if (!receiptLines.length){
     body.innerHTML = '';
+    if (receiptBox) receiptBox.style.display = 'none';
     return;
   }
+  if (receiptBox) receiptBox.style.display = '';
   body.innerHTML = '<div class="rt">商品名称</div>'
     + receiptLines.map(function(l){ return '<div class="rl">' + l + '</div>'; }).join('')
     + '<div class="rtotal"><span>总计</span><span class="n">' + data.currency + formatMoney(total) + '</span></div>';
