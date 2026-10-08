@@ -56,19 +56,27 @@ def main():
         _emit(f"无法查询同步 workflow 状态（{e}）")
         return
 
-    latest = runs["workflow_runs"][0]
+    latest = None
+    for r in runs["workflow_runs"]:
+        if r["status"] == "completed":
+            latest = r
+            break
+    if not latest:
+        print("没有已完成的 sync run")
+        _emit("没有找到已完成的「价格自动同步」run，请检查 workflow 是否正常触发")
+        return
+
     created = datetime.strptime(latest["created_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     age_min = (datetime.now(timezone.utc) - created).total_seconds() / 60
     conclusion = latest.get("conclusion")
-    status = latest.get("status")
-    print(f"最近 run: {latest['created_at']} status={status} conclusion={conclusion} 距今 {age_min:.0f} 分钟")
+    print(f"最近完成的 run: {latest['created_at']} conclusion={conclusion} 距今 {age_min:.0f} 分钟")
 
     if conclusion != "success" or age_min > STALE_MINUTES:
         print("STALE/FAIL")
         _emit(
-            f"最近一次「价格自动同步」run 异常："
-            f"状态={status} 结论={conclusion} 距今 {age_min:.0f} 分钟"
-            f"（阈值 {STALE_MINUTES} 分钟）。请检查腾讯表格分享、cron-job 触发和 Actions 日志。"
+            f"最近一次成功的「价格自动同步」距今 {age_min:.0f} 分钟"
+            f"（阈值 {STALE_MINUTES} 分钟），结论={conclusion}。"
+            f"请检查腾讯表格分享、cron-job 触发和 Actions 日志。"
         )
     else:
         print("OK")
