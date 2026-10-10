@@ -64,7 +64,7 @@ def extract_sheet():
                     args=["--no-sandbox", "--disable-dev-shm-usage"],
                 )
                 page = browser.new_page()
-                page.goto(SHEET_URL, wait_until="domcontentloaded", timeout=90000)
+                page.goto(SHEET_URL, wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(15000)
                 result = page.evaluate("""() => {
                     const wm = window.SpreadsheetApp.workbook.worksheetManager;
@@ -112,7 +112,7 @@ def extract_sheet():
                 last_err = e
                 print(f"[sync] 读取表格第 {attempt} 次失败: {e}")
                 if attempt < 5:
-                    time.sleep(30)
+                    time.sleep(20)
             finally:
                 if browser:
                     try:
