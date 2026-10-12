@@ -190,8 +190,25 @@ def load_current():
         return None
 
 
+def network_reachable():
+    """快速探测 docs.qq.com:443 是否可达（8 秒超时）。
+    晚高峰（约19:00前后）腾讯文档会临时限流/不可达，属于已知偶发情况。"""
+    import socket
+    try:
+        s = socket.create_connection(("docs.qq.com", 443), timeout=8)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+
 def run_once():
     print(f"[sync] {time.strftime('%H:%M:%S')} 开始同步…")
+    # 晚高峰腾讯文档临时不可达：探测不通就正常退出（不算失败、不发邮件、不补触发），
+    # 下个 5 分钟周期自然重试，线上 prices.json 保持旧数据不受影响。
+    if not network_reachable():
+        print("[sync] docs.qq.com 暂不可达（网络波动/晚高峰限流），跳过本次，等下个周期自动重试。")
+        sys.exit(0)
     try:
         rows, updated_at = extract_sheet()
     except Exception as e:
