@@ -54,6 +54,7 @@ jobs:
         run: python3 sync_sheet.py
 
       - name: 价格有变化则提交 prices.json（触发新 build version，确保 Pages 真正切换）
+        id: check
         run: |
           git config user.name "sync-bot"
           git config user.email "sync-bot@users.noreply.github.com"
@@ -61,24 +62,30 @@ jobs:
             git add prices.json
             git commit -m "sync: 价格更新 $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')"
             git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "已提交新 prices.json"
           else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "价格无变化，无需提交"
           fi
 
       - name: 部署网页
         id: upload
+        # 价格无变化的定时同步跳过部署（线上文件未变，避免每次都碰 Pages 服务）；
+        # 手动 dispatch 视为代码/页面改动，始终部署。
+        if: steps.check.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
 
       - name: 发布到 Pages（官方通道）
         id: deployment
+        if: steps.check.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/deploy-pages@v4
         continue-on-error: true
 
       - name: 官方发布失败，30 秒后 API 重试（最多 2 次）
-        if: steps.deployment.outcome == 'failure'
+        if: (steps.check.outputs.changed == 'true' || github.event_name == 'workflow_dispatch') && steps.deployment.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
