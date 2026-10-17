@@ -5,7 +5,7 @@
     "contact": "微信：Acssxiaolei",
     "notice": ""
   },
-  "saved_at": "2026-10-14 10:41",
+  "saved_at": "2026-10-17 13:51",
   "currency": "¥",
   "discounts": {
     "2027": -5,
@@ -18,7 +18,7 @@
       "name": "mini20p 盒装",
       "unit": "盒",
       "spec": "20 张/盒",
-      "price": 117.5,
+      "price": 120,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -30,7 +30,7 @@
       "name": "mini10p 盒装",
       "unit": "盒",
       "spec": "10 张/盒",
-      "price": 58.75,
+      "price": 60,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -42,7 +42,7 @@
       "name": "迷你锡纸",
       "unit": "包",
       "spec": "散装",
-      "price": 56.75,
+      "price": 58,
       "formula": "",
       "badge": "",
       "stock": "现货",
@@ -363,8 +363,8 @@
     }
   ],
   "discount_labels": {
-    "now": "27年12月起",
-    "2027": "≤27.11",
+    "now": "28.1起",
+    "2027": "≤27.12",
     "2026": "26年",
     "damage": "盒损"
   }
