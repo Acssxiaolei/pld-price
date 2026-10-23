@@ -61,7 +61,12 @@ jobs:
           if ! git diff --quiet prices.json; then
             git add prices.json
             git commit -m "sync: 价格更新 $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')"
-            git push
+            # 并发 run 可能同时提交：push 前先 rebase，失败自动重试最多 3 次
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push && break
+              echo "第 $i 次 push 冲突，5 秒后重试..."
+              sleep 5
+            done
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "已提交新 prices.json"
           else
